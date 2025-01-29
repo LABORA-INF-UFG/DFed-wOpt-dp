@@ -4,10 +4,12 @@ from ml_model.ml_model import Model
 from client.client import Client
 
 
+
 class Server:
     def __init__(self, n_rounds, total_number_clients, min_fit_clients, load_client_data_constructor,
-                 path_server, path_clients, shape, model_type, parallel_processing=False):
+                 path_server, path_clients, shape, model_type, parallel_processing=False, tm=None):
 
+        self.tm = tm
         self.n_rounds = n_rounds
         self.total_number_clients = total_number_clients
         self.min_fit_clients = min_fit_clients
@@ -31,6 +33,10 @@ class Server:
 
         self.clients_model_list = []
         self.clients_number_data_samples = []
+        self.clients_value_based_emd = []
+        self.clients_emd = []
+        self.clients_sinr_avg = []
+
         self.clients_acc = []
         self.clients_loss = []
 
@@ -42,14 +48,38 @@ class Server:
         self.create_models()
         (self.x_train, self.y_train), (self.x_test, self.y_test) = self.load_data()
 
+        self.emd_mean = np.mean(self.clients_emd)
+
     def create_models(self):
+
+        total_data = 0
+        for i in range(self.total_number_clients):
+            c = Client(i+1, self.load_client_data_constructor, self.path_clients, self.shape, self.model_type)
+            total_data = total_data + c.number_data_samples()
+
         for i in range(self.total_number_clients):
             self.clients_model_list.append(Client(i + 1, self.load_client_data_constructor, self.path_clients, self.shape, self.model_type))
+
             self.clients_number_data_samples.append(self.clients_model_list[i].number_data_samples())
+            self.clients_emd.append(self.clients_model_list[i].compute_emd_aux())
+            self.clients_sinr_avg.append(np.mean(self.tm.user_sinr[i]))
+
             self.clients_acc.append(0)
             self.clients_loss.append(np.inf)
             self.count_of_client_selected.append(0)
             self.count_of_client_uploads.append(0)
+
+        emd_min = np.min(self.clients_emd)
+        emd_max = np.max(self.clients_emd)
+        sinr_min = np.min(1 / np.array(self.clients_sinr_avg))
+        sinr_max = np.max(1 / np.array(self.clients_sinr_avg))
+
+        epsilon = 1e-8
+        for i in range(self.total_number_clients):
+            user_snr_value = (1/self.clients_sinr_avg[i] - sinr_min) / (sinr_max - sinr_min + epsilon)
+            emd_value = (self.clients_emd[i] - emd_min) / (emd_max - emd_min + epsilon)
+            value_based_emd = emd_value + user_snr_value
+            self.clients_value_based_emd.append(value_based_emd)
 
     def load_data(self):
         train = pd.read_pickle(f"{self.path_server}/train.pickle")
@@ -110,7 +140,6 @@ class Server:
         else:
             for i in range(self.total_number_clients):
                 loss, accuracy = self.clients_model_list[i].evaluate(parameters=self.w_global)
-                # print(f"Evaluate - CID: {i+1} - accuracy: {accuracy}")
                 loss_list.append(loss)
                 accuracy_list.append(accuracy)
 

@@ -1,7 +1,9 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 from ml_model.ml_model import Model
-
+import ot
 
 class Client:
     def __init__(self, cid, load_data_constructor, path, shape, model_type):
@@ -23,6 +25,7 @@ class Client:
             (self.x_train, self.y_train), (self.x_test, self.y_test) = (None, None), (None, None)
 
     def load_data(self):
+
         train = pd.read_pickle(f"{self.path}/{self.cid}_train.pickle")
         test = pd.read_pickle(f"{self.path}/{self.cid}_test.pickle")
 
@@ -38,16 +41,36 @@ class Client:
 
         return (x_train, y_train), (x_test, y_test)
 
+    @staticmethod
+    def compute_emd(v_labels):
+        unique_values = np.unique(v_labels)
+        ref_vetor = np.linspace(unique_values.min(), unique_values.max(), len(v_labels))
+
+        w_vetor = np.ones(len(v_labels)) / len(v_labels)
+        w_ref = np.ones(len(ref_vetor)) / len(ref_vetor)
+
+        D = ot.dist(v_labels.reshape(-1, 1), ref_vetor.reshape(-1, 1), metric='euclidean')
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            emd_value = ot.emd2(w_vetor, w_ref, D)
+        return emd_value
+
+    def compute_emd_aux(self):
+        return self.compute_emd(self.y_train.values)
+
     def number_data_samples(self):
         (self.x_train, self.y_train), (self.x_test, self.y_test) = self.load_data()
         return len(self.x_train)
 
     def fit(self, parameters, config=None):
+        # print(f"CID: {self.cid}")
+
         if not self.load_data_constructor:
             (self.x_train, self.y_train), (self.x_test, self.y_test) = self.load_data()
 
         self.model.set_weights(parameters)
-        history = self.model.fit(self.x_train, self.y_train, epochs=1, batch_size=128,
+        history = self.model.fit(self.x_train, self.y_train, epochs=1, batch_size=128, # batch_size=len(self.x_train)
                                  validation_data=(self.x_test, self.y_test), verbose=False)
         sample_size = len(self.x_train)
 

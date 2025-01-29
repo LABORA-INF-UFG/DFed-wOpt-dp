@@ -1,14 +1,24 @@
 import numpy as np
 
+from ml_model.ml_model import Model
+
 
 class Transmission_Model:
 
-    def __init__(self, rb_number, user_number, total_model_params, lower_limit_distance=100, upper_limit_distance=500,
+    def __init__(self, rb_number, user_number, shape, model_type, lower_limit_distance=100, upper_limit_distance=500,
                  fixed_user_power=0):
 
         self.rb_number = rb_number
         self.user_number = user_number
-        self.total_model_params = total_model_params
+        self.shape = shape
+        self.model_type = model_type
+
+        if self.model_type == "MLP":
+            self.model = Model.create_model_mlp()
+        else:
+            self.model = Model.create_model_cnn(self.shape)
+
+        self.total_model_params = self.model.count_params()
 
         self.fixed_user_power = fixed_user_power
 
@@ -46,7 +56,6 @@ class Transmission_Model:
         self.user_energy_training = np.array([])
         self.user_upload_energy = np.array([])
         self.total_energy = np.array([])
-
         self.init()
 
     def init(self):

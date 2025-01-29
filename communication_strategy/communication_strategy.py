@@ -1,12 +1,16 @@
 import numpy as np
+import pulp as pl
+import re
+
 from optmizer.milp_optmizer import Milp_Opt
 
 
 class Communication_Strategy:
 
     def __init__(self, transmission_model, min_fit_clients, clients_number_data_samples,
+                 clients_value_based_emd, emd_mean, clients_emd,
                  delay_requirement=0.2, energy_requirement=0.0025,
-                 error_rate_requirement=0.3, lmbda=260):
+                 error_rate_requirement=0.3, lmbda=1.2):
 
         self.tm = transmission_model
         self.min_fit_clients = min_fit_clients
@@ -16,6 +20,9 @@ class Communication_Strategy:
         self.lmbda = lmbda
 
         self.clients_number_data_samples = clients_number_data_samples
+        self.clients_value_based_emd = clients_value_based_emd
+        self.emd_mean = emd_mean
+        self.clients_emd = clients_emd
 
         self.count_selected_clients = 0
         self.selected_clients = np.array([])
@@ -68,9 +75,41 @@ class Communication_Strategy:
         self.selected_clients = final_selected_clients
         self.count_selected_clients = len(self.selected_clients)
 
+    def smaller_emd(self, factor, k):
+
+        selected_clients = np.random.permutation(self.tm.user_number)[:int(self.min_fit_clients * factor)]
+
+        emd_samples_list = np.array(self.clients_value_based_emd)[selected_clients]
+        pos_list = np.arange(len(emd_samples_list))
+
+        # Combination of lists
+        combined_data = list(zip(emd_samples_list, pos_list))
+        sorted_data = sorted(combined_data, key=lambda x: x[0]) #reverse=True # testar sem reverse  # ver SNR
+        emd_list, pos_list = zip(*sorted_data)
+        final_selected_clients = np.sort(selected_clients[np.array(pos_list)[:k]])
+
+        self.selected_clients = final_selected_clients
+        self.count_selected_clients = len(self.selected_clients)
+
+    def smaller_emd_(self, factor, k):
+        selected_clients = np.random.permutation(self.tm.user_number)[:int(self.min_fit_clients * factor)]
+
+        emd_samples_list = np.array(self.clients_value_based_emd)[selected_clients]
+        pos_list = np.arange(len(emd_samples_list))
+        print(emd_samples_list)
+
+        # Combination of lists
+        combined_data = list(zip(emd_samples_list, pos_list))
+        sorted_data = sorted(combined_data, key=lambda x: x[0])
+        emd_list, pos_list = zip(*sorted_data)
+
+        final_selected_clients = np.sort(selected_clients[np.array(pos_list)[:k]])
+
+        self.selected_clients = final_selected_clients
+        self.count_selected_clients = len(self.selected_clients)
+
     def greater_loss_user_selection(self, clients_loss_list, factor, k):
         selected_clients = np.random.permutation(self.tm.user_number)[:int(self.min_fit_clients * factor)]
-        print(f"user_selection: {selected_clients}")
 
         loss_samples_list = np.array(clients_loss_list)[selected_clients]
         pos_list = np.arange(len(loss_samples_list))
@@ -80,12 +119,7 @@ class Communication_Strategy:
         combined_data = list(zip(loss_samples_list, pos_list))
         sorted_data = sorted(combined_data, reverse=True, key=lambda x: x[0])
         loss_list, pos_list = zip(*sorted_data)
-
-        print(f"data_list: {loss_list}")
-        print(f"pos_list: {pos_list}")
-
         final_selected_clients = np.sort(selected_clients[np.array(pos_list)[:k]])
-        print(f"final user_selection: {final_selected_clients}")
 
         self.selected_clients = final_selected_clients
         self.count_selected_clients = len(self.selected_clients)
@@ -100,7 +134,6 @@ class Communication_Strategy:
         self.rb_allocation = np.zeros(self.tm.user_number, dtype=int)
         self.rb_allocation[np.random.permutation(self.tm.rb_number)[:self.min_fit_clients]] = 1
         self.rb_allocation = np.random.permutation(np.where(self.rb_allocation > 0)[0])
-        # print(self.rb_allocation)
 
     def fixed_user_power_allocation(self):
         self.user_power_allocation = np.zeros(self.count_selected_clients).astype(int)
@@ -150,10 +183,10 @@ class Communication_Strategy:
         round_energy_error = 0
         round_delay = 0
         round_delay_upload_success = 0
+
         round_power = 0
 
         for i, ue in enumerate(self.selected_clients):
-            # print(ue)
             round_power = round_power + self.tm.user_power[self.user_power_allocation[i]]
             round_energy = round_energy + self.tm.total_energy[ue, self.rb_allocation[i], self.user_power_allocation[i]]
             round_delay = (round_delay + self.tm.total_delay[ue, self.rb_allocation[i], self.user_power_allocation[i]])

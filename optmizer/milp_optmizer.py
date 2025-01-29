@@ -7,7 +7,18 @@ class Milp_Opt:
         self.cs = communication_strategy
 
     def opt(self, selected_clients):
+        print(f"> optimization_rb_allocation")
         selected_clients = selected_clients.copy()
+
+        print(f"len(selected_clients): {len(selected_clients)}")
+        print(f"rb_number: {self.cs.tm.rb_number}")
+        print(f"min_fit_clients: {self.cs.min_fit_clients}")
+
+        print(f"delay_req: {self.cs.delay_requirement}")
+        print(f"energy_req: {self.cs.energy_requirement}")
+        print(f"error_rate_requirement: {self.cs.error_rate_requirement}")
+        print(f"selected_clients: {selected_clients}")
+        print("*****************")
 
         # Creation of the assignment problem
         model = pl.LpProblem("Max_Prob", pl.LpMaximize)

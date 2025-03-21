@@ -2,13 +2,14 @@ import numpy as np
 import pulp as pl
 import re
 
+from optmizer.hungarian_algorithm import Hungarian_Algorithm_Opt
 from optmizer.milp_optmizer import Milp_Opt
 
 
 class Communication_Strategy:
 
     def __init__(self, transmission_model, min_fit_clients, clients_number_data_samples,
-                 clients_value_based_emd, emd_mean, clients_emd,
+                 clients_value_based_emd, emd_mean, clients_emd, optmizer_type,
                  delay_requirement=0.2, energy_requirement=0.0025,
                  error_rate_requirement=0.3, lmbda=1.2):
 
@@ -33,6 +34,7 @@ class Communication_Strategy:
         self.error_uploads = []
 
         self.W = np.array([])
+        self.optmizer_type = optmizer_type
         self.optmizer = None
 
         self.round_costs_list = {
@@ -51,7 +53,10 @@ class Communication_Strategy:
 
     def init(self):
         self.compute_transmission_probability_matrix()
-        self.optmizer = Milp_Opt(self)
+        if self.optmizer_type == 'MILP':
+            self.optmizer = Milp_Opt(self)
+        else:
+            self.optmizer = Hungarian_Algorithm_Opt(self)
 
     def greater_data_user_selection(self, factor, k):
 

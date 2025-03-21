@@ -4,7 +4,6 @@ from ml_model.ml_model import Model
 from client.client import Client
 
 
-
 class Server:
     def __init__(self, n_rounds, total_number_clients, min_fit_clients, load_client_data_constructor,
                  path_server, path_clients, shape, model_type, parallel_processing=False, tm=None):

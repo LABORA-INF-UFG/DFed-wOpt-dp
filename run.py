@@ -10,8 +10,8 @@ from server.server import Server
 class FL(Server):
 
     def __init__(self, n_rounds, total_number_clients, min_fit_clients, rb_number, load_client_data_constructor,
-                 path_server, path_clients, shape, model_type, fixed_user_power,
-                 parallel_processing=False, tm=None):
+                 path_server, path_clients, shape, model_type, fixed_user_power, optmizer_type,
+                 parallel_processing=False):
         self.tm = Transmission_Model(rb_number=rb_number, user_number=total_number_clients,
                                      shape=shape,
                                      model_type=model_type,
@@ -28,7 +28,8 @@ class FL(Server):
             clients_value_based_emd=self.clients_value_based_emd,
             emd_mean=self.emd_mean,
             clients_emd=self.clients_emd,
-            delay_requirement=0.4, energy_requirement=0.005, error_rate_requirement=0.3, lmbda=230)  # 230
+            optmizer_type=optmizer_type,
+            delay_requirement=0.4, energy_requirement=0.005, error_rate_requirement=0.3, lmbda=160)
         # delay_requirement=0.2, energy_requirement=0.0025 - NIID R-MNIST com MLP
         # delay_requirement=0.4, energy_requirement=0.005  - NIID R-FMNIST com CNN
 
@@ -71,10 +72,12 @@ class FL(Server):
         # self.strategy.greater_loss_user_selection(clients_loss_list=fl.clients_loss, factor=2, k=int(self.min_fit_clients))
         # self.strategy.optimization()
 
-        # exit()
+        # FedAvg-wOpt [MILP] / FLoWN [HUN]
+        # self.strategy.random_user_selection(k=int(self.min_fit_clients))
+        # self.strategy.optimization()
 
         # DFed-wOpt
-        self.strategy.smaller_emd(factor=2, k=int(self.min_fit_clients))
+        self.strategy.smaller_emd(factor=1.5, k=int(self.min_fit_clients))
         self.strategy.optimization()
 
         ################
@@ -97,8 +100,9 @@ if __name__ == "__main__":
                 shape=(28, 28, 1),
                 model_type="CNN",
 
-                fixed_user_power=0,  # the allocation is dynamic when the value equals zero
-                # fixed_user_power=0.01,
+                # fixed_user_power=0,  # the allocation is dynamic when the value equals zero
+                fixed_user_power=0.01,
+                optmizer_type="MILP",  # MILP / HUN
                 load_client_data_constructor=False)
 
         evaluate_loss, evaluate_accuracy = None, None
